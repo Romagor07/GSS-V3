@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Metrostroi #1",
+    "type": "metrostroi",
+    "ip": "37.230.137.194",
+    "port": 27015,
+    "connect": "https://goo.su/7VVn1iE"
+  },
+  {
+    "name": "Metrostroi #2",
+    "type": "metrostroi",
+    "ip": "37.230.137.194",
+    "port": 28015,
+    "connect": "https://goo.su/2pLtWZv"
+  },
+  {
+    "name": "SCP: Secret Laboratory",
+    "type": "scp",
+    "ip": "37.230.137.194",
+    "port": 7777,
+    "connect": "https://goo.su/mwA7o"
+  }
+]
