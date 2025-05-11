@@ -6,7 +6,8 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  PermissionsBitField
 } = require('discord.js');
 const fs = require('fs');
 const Gamedig = require('gamedig');
@@ -26,6 +27,7 @@ let messageData = fs.existsSync(messagesPath)
 
 client.once('ready', async () => {
   const guild = await client.guilds.fetch(process.env.GUILD_ID);
+  const everyoneRole = guild.roles.everyone;
   let channels = await guild.channels.fetch();
 
   // Категория
@@ -35,40 +37,56 @@ client.once('ready', async () => {
       name: CATEGORY_NAME,
       type: ChannelType.GuildCategory
     });
-    channels = await guild.channels.fetch(); // обновляем список каналов
+    channels = await guild.channels.fetch();
   }
 
-  // Создаём или находим голосовые каналы
+  // Создание или поиск голосовых каналов
   for (const srv of servers) {
-    let voiceChannel = channels.find(c => c.type === ChannelType.GuildVoice && c.name.includes(srv.name) && c.parentId === category.id);
+    let voiceChannel = channels.find(
+      c => c.type === ChannelType.GuildVoice && c.name.includes(srv.name) && c.parentId === category.id
+    );
+
     if (!voiceChannel) {
       voiceChannel = await guild.channels.create({
         name: `🔴 ${srv.name} (Offline)`,
         type: ChannelType.GuildVoice,
-        parent: category.id
+        parent: category.id,
+        userLimit: srv.type === 'scp' ? 20 : undefined,
+        permissionOverwrites: [
+          {
+            id: everyoneRole.id,
+            deny: [PermissionsBitField.Flags.Connect]
+          }
+        ]
       });
-      channels = await guild.channels.fetch(); // обновляем список каналов
+      channels = await guild.channels.fetch();
     }
   }
 
-  // Проверяем, существует ли текстовый канал с сохранённым ID
+  // Текстовый канал: ищем по сохранённому ID
   let textChannel = null;
   if (messageData.textChannelId) {
     textChannel = await guild.channels.fetch(messageData.textChannelId).catch(() => null);
   }
 
-  // Если текстового канала нет, создаём новый и сохраняем его ID
   if (!textChannel) {
     textChannel = await guild.channels.create({
       name: TEXT_CHANNEL_NAME,
       type: ChannelType.GuildText,
-      parent: category.id
+      parent: category.id,
+      permissionOverwrites: [
+        {
+          id: everyoneRole.id,
+          allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ReadMessageHistory],
+          deny: [PermissionsBitField.Flags.SendMessages]
+        }
+      ]
     });
-    messageData.textChannelId = textChannel.id; // сохраняем ID канала
-    fs.writeFileSync(messagesPath, JSON.stringify(messageData, null, 2)); // сохраняем изменения в файл
+    messageData.textChannelId = textChannel.id;
+    fs.writeFileSync(messagesPath, JSON.stringify(messageData, null, 2));
   }
 
-  // Запускаем цикл обновления состояния
+  // Обновление статуса
   setInterval(() => updateStatus(guild, category, textChannel), UPDATE_INTERVAL);
   updateStatus(guild, category, textChannel);
 });
@@ -83,16 +101,13 @@ async function updateStatus(guild, category, textChannel) {
 
     try {
       if (srv.type === 'scp') {
-        const res = await axios.get('https://api.vodka-pro.ru/status/metro1');
+        const res = await axios.get('https://api.vodka-pro.ru/status/scp');
         const data = res.data;
-
         if (typeof data.online === 'number') {
           online = true;
           numplayers = data.online;
-        } else if (data.offline === 0) {
-          online = false;
         } else {
-          throw new Error('Invalid SCP API response');
+          online = false;
         }
       } else {
         state = await Gamedig.query({
@@ -109,11 +124,9 @@ async function updateStatus(guild, category, textChannel) {
       online = false;
     }
 
-    // Обновляем голосовой канал
+    // Обновление голосового канала
     const voice = guild.channels.cache.find(
-      c => c.type === ChannelType.GuildVoice &&
-        c.name.includes(srv.name) &&
-        c.parentId === category.id
+      c => c.type === ChannelType.GuildVoice && c.name.includes(srv.name) && c.parentId === category.id
     );
 
     if (voice) {
@@ -151,7 +164,7 @@ async function updateStatus(guild, category, textChannel) {
         .setURL(srv.connect)
     );
 
-    // Обновление или создание сообщения
+    // Обновление сообщений
     const key = srv.name;
     if (messageData[key]) {
       try {
@@ -159,13 +172,13 @@ async function updateStatus(guild, category, textChannel) {
         await msg.edit({ embeds: [embed], components: [row] });
         continue;
       } catch {
-        // Сообщение удалено, создаем новое
+        // удалено вручную
       }
     }
 
     const sent = await textChannel.send({ embeds: [embed], components: [row] });
-    messageData[key] = sent.id; // сохраняем новый ID
-    fs.writeFileSync(messagesPath, JSON.stringify(messageData, null, 2)); // обновляем файл
+    messageData[key] = sent.id;
+    fs.writeFileSync(messagesPath, JSON.stringify(messageData, null, 2));
   }
 }
 
