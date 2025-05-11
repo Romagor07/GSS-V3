@@ -16,8 +16,8 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const servers = require('./config/servers.json');
 const messagesPath = './data/messages.json';
 
-const CATEGORY_NAME = 'Мониторинг';
-const TEXT_CHANNEL_NAME = 'статус серверов';
+const CATEGORY_NAME = '📶│МОНИТОРИНГ';
+const TEXT_CHANNEL_NAME = '🛰️ статус серверов';
 const UPDATE_INTERVAL = 60_000;
 
 let messageData = fs.existsSync(messagesPath)
