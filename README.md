@@ -102,4 +102,4 @@ pm2 start GSS-V#/index.js --name Статус_Cерверов --wathc=false
 
 ## 📃 Лицензия
 
-MIT License © 2025
+MIT License © [romagor07](https://github.com/Romagor07) 2025
